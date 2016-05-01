@@ -18,10 +18,12 @@
 
 # import modules
 from __future__ import division
+from scipy import stats
 
 import numpy as np
 import random
 import sys
+
 
 
 # initialize global parameters
@@ -56,8 +58,6 @@ def read_input_sequence(file_name):
     with open(file_name, 'r') as file_id:
         for line in file_id:
             input_HP_sequence += line.replace('\n', '')
-
-    file_id.close()
     return input_HP_sequence
 
 
@@ -90,11 +90,28 @@ def resample_conformations(S, w, a, N_star):
     """
     perform standard resampling from the conformation set S and the probability vector a
     """
+    assert(min(a) >= 0)
+    
+    # normalize the probability vector a
+    a_normal = np.array(a)
+    a_normal = a_normal / np.sum(a_normal)
+    
+    # resample conformations S_star with probabilities proportional to a_normal
+    S_indice = np.arrange(len(S))
+    resample_obj = stats.rv_discrete(name = "resample_obj", values = (S_indice, a_normal))
+    S_star_indice = resample_obj.rvs(size = N_star)
+    
+    S_star = []
+    w_star = []
+    for i in S_star_indice:
+        S_star.append(S[i])
+        w_star.append(w[i])
+    
     # return the resampled conformations S_star and the weights w_star
     return (S_star, w_star)
 
 
-def resample_with_pilot_exploration(S, w, N_star):
+def resample_with_pilot_exploration(S, w, input_HP_sequence, N_star):
     """
     Resample the current set of conformations using the pilot-exploration resampling scheme
     """
@@ -112,8 +129,12 @@ def resample_with_pilot_exploration(S, w, N_star):
             pi_l = 0
             for i in xrange(Delta):
                 # compute the probabilities along different directions
-                [p_left, p_right, p_ahead] = multi_step_look_ahead(xl, rho)
-                p_sum    = p_left + p_right + p_ahead
+                [p_left, p_right, p_ahead] = multi_step_look_ahead(xl, input_HP_sequence, rho)
+                p_sum = p_left + p_right + p_ahead
+
+                if p_sum == 0:
+                    pi_l = 0
+                    break
 
                 # move a new step and update the weight of the conformation
                 rand_num = random.random()
@@ -157,32 +178,38 @@ def main():
     # sequence length
     d = len(input_HP_sequence) - 2
 
-    # fix the first step along the horizontal direction
+    # fix the first step along the vertical direction
     # this step, x0, doesn't matter at all
 
     # initialization
-    S = []          # conformation set
-    w = []          # conformation weights
-    U = []          # conformation energy
-    for i in xrange(N):
-        S.append([ahead])
-        w.append(1)
-        U.append(0)
+    S = N * [ahead]         # conformation set
+    w = N * [1]             # conformation weights
+    U = N * [0]             # conformation energy
 
     # sequentially generate conformations
-    for t in xrange(1, d+1, 1):
+    for t in xrange(1, d+1):
+        
+        # initialize a list to save the indice of incorrectly terminated conformations
+        failed_indice = []
+        
         # perform a regular SIS step with multi-step-look-ahead
         for i, x in enumerate(S):
             # compute the probabilities along different directions
-            [p_left, p_right, p_ahead] = multi_step_look_ahead(x, delta)
-            p_sum    = p_left + p_right + p_ahead
+            [p_left, p_right, p_ahead] = multi_step_look_ahead(x, input_HP_sequence, delta)
+            p_sum = p_left + p_right + p_ahead
+            
+            # record the indices of incorrectly terminated conformations
+            if p_sum == 0:
+                failed_indice.append(i)
+                continue
+                    
             p_left  /= p_sum
             p_right /= p_sum
             p_ahead /= p_sum
 
             # move a new step and update the weight of the conformation
             rand_num = random.random()
-            if (rand_num < p_left):
+            if rand_num < p_left:
                 x.append(left)
                 U_new = compute_energy(x, input_HP_sequence)
                 w[i] *= np.exp(- (U_new - U[i]) / tau) / p_left
@@ -198,9 +225,15 @@ def main():
             # save the energy of the current configuration
             U[i] = U_new
 
+        # remove incorrectly terminated conformations
+        for i, index in enumerate(failed_indice):
+            del S[index - i]    # shift the index due to deletion; work for the sorted list
+            del w[index - i]
+            del U[index - i]
+
         # perform resampling
-        if (t % (lamb + 1) == 0):
-            S, w = resample_with_pilot_exploration(S, w, N)
+        if t % (lamb + 1) == 0:
+            S, w = resample_with_pilot_exploration(S, w, input_HP_sequence, len(S))
 
             # update the conformation energies
             for i, x in enumerate(S):
