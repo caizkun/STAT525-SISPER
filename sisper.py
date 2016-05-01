@@ -8,8 +8,6 @@
 #   Sequential Importance Sampling with Pilot-Exploration Resampling (SISPER)
 #
 # Reference:
-#   J. L. Zhang and J. S. Liu, A new sequential importance sampling method and its application to the two-dimensional hydrophobic–hydrophilic model,
-# The Journal of Chemical Physics, 117, 3492-3498 (2002).
 #
 # Developers:
 # 	Zhikun Cai, Chenchao Shou, Guanfeng Gao
@@ -63,12 +61,12 @@ def read_input_sequence(file_name):
 
 def compute_conformation_coordinates(x):
     """
-        Compute the conformation cooridates from the vector of torsion angles
-        """
+    Compute the conformation cooridates from the vector of torsion angles
+    """
     # return a list of conformation coordinates (x_i, y_i)
     # feel free to change the function naming
-    x_i=np.zeros(x.size+2) #initialize all the points in x and y coordinates
-    y_i=np.zeros(x.size+2) #initialize all the points in x and y coordinates
+    x_i=np.zeros(len(x)+2) #initialize all the points in x and y coordinates
+    y_i=np.zeros(len(x)+2) #initialize all the points in x and y coordinates
     x_i[0]=0#get the first point
     y_i[0]=0
     x_i[1]=0#get the second point in the positive y direction
@@ -109,24 +107,27 @@ def compute_conformation_coordinates(x):
     return x_i,y_i
 
 
-def compute_couples(input_HP_sequence):#compute all the possible couples in the series
-    num=0#initialize the size of couples
+def compute_couples(input_HP_sequence):
+    """
+    compute all the possible couples in the series
+    """
+    num=0   #initialize the size of couples
     couples=np.zeros([len(input_HP_sequence)**2,2])
     for ii in range(len(input_HP_sequence)):
         if input_HP_sequence[ii]=='H':
-            for jj in range(ii+3,len(input_HP_sequence),2):#loop through the rest possible nodes
+            for jj in range(ii+3,len(input_HP_sequence),2): #loop through the rest possible nodes
                 if input_HP_sequence[jj]=='H':
                     couples[num,0]=ii
                     couples[num,1]=jj
                     num=num+1
-    couples=couples[0:num,:]#get the effective couples
+    couples=couples[0:num,:]    #get the effective couples
     return couples
 
 
 def compute_energy(x, couples):
     """
-        Compute the energy of a specific conformation
-        """
+    Compute the energy of a specific conformation
+    """
     # add code here, feel free to change the argument list
     # Given a input HP sequence, we already which points are H's.
     U=0
@@ -146,7 +147,7 @@ def one_step(x):
     """
     return all possible configurations after one step given the current position
     and direction for each configuration
-        
+
     Input: current position x = [[x1,y1],[x2,y2]...[xn,yn]]
     Output: [a list of configurations, a list of directions]
     """
@@ -170,10 +171,10 @@ def one_step(x):
 def neighbor(pt,cpt):
     """
     return the neighbors of pt other than cpt as well as direction
-        
+
     Input: pt = [x1,y1], cpt = [x2,y2]
     Output: [a list of 3 points, a list of 3 directions]
-        
+
     """
     nbrs = []
     dirs = []
@@ -198,17 +199,17 @@ def neighbor(pt,cpt):
 def multi_step_look_ahead(x, input_HP_sequence, steps_tmp):
     """
     Collect future information using the multi-step-look-ahead method to bias the movement of the next step
-        
+
     Input: list of torsion angles
     input HP sequence: input_HP_sequence
     """
-    
-    x_coord = compute_conformation_coordinates(x_angle)
-    steps = min(steps_tmp,len(input_HP_sequence)-len(x))
+
+    x_coord = compute_conformation_coordinates(x)
+    steps = min(steps_tmp,len(input_HP_sequence)-len(x_coord))
     input_seq = input_HP_sequence[:(len(x)+steps)]
 
     couples = compute_couples(input_seq)
-    
+
     # look ahead to get all possible configurations
     # do the first step
     [c1,d1] = one_step(x_coord)
@@ -230,7 +231,7 @@ def multi_step_look_ahead(x, input_HP_sequence, steps_tmp):
     [p_left, p_right, p_ahead] = [0.0,0.0,0.0]
     for i,cf in enumerate(configs):
         d = dirs[i]
-        prob = exp(-compute_energy(cf,couples)/tau)
+        prob = np.exp(-compute_energy(cf,couples)/tau)
         if d == left:
             p_left += prob
         elif d == right:
@@ -246,22 +247,22 @@ def resample_conformations(S, w, a, N_star):
     perform standard resampling from the conformation set S and the probability vector a
     """
     assert(min(a) >= 0)
-    
+
     # normalize the probability vector a
     a_normal = np.array(a)
     a_normal = a_normal / np.sum(a_normal)
-    
+
     # resample conformations S_star with probabilities proportional to a_normal
     S_indice = np.arrange(len(S))
     resample_obj = stats.rv_discrete(name = "resample_obj", values = (S_indice, a_normal))
     S_star_indice = resample_obj.rvs(size = N_star)
-    
+
     S_star = []
     w_star = []
     for i in S_star_indice:
         S_star.append(S[i])
         w_star.append(w[i])
-    
+
     # return the resampled conformations S_star and the weights w_star
     return (S_star, w_star)
 
@@ -346,21 +347,21 @@ def main():
 
     # sequentially generate conformations
     for t in xrange(1, d+1):
-        
+
         # initialize a list to save the indice of incorrectly terminated conformations
         failed_indice = []
-        
+
         # perform a regular SIS step with multi-step-look-ahead
         for i, x in enumerate(S):
             # compute the probabilities along different directions
             [p_left, p_right, p_ahead] = multi_step_look_ahead(x, input_HP_sequence, delta)
             p_sum = p_left + p_right + p_ahead
-            
+
             # record the indices of incorrectly terminated conformations
             if p_sum == 0:
                 failed_indice.append(i)
                 continue
-                    
+
             p_left  /= p_sum
             p_right /= p_sum
             p_ahead /= p_sum
