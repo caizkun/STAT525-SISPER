@@ -67,16 +67,19 @@ def neighbor(pt,cpt):
         elif pt[0] == cpt[0]-1:
             nbrs = [[pt[0]-1,pt[1]],[pt[0],pt[1]+1],[pt[0],pt[1]-1]]
             dirs = [ahead,right,left]
-    assert (len(nbrs) == 3 and len(dirs) == 3) # sanity check
+    assert (len(nbrs) == 3 and len(dirs) == 3), 'error! number of neighbors is invalid!' # sanity check
     return [nbrs,dirs]
     
-def multi_step_look_ahead(x, input_seq, steps):
+def multi_step_look_ahead(x, input_HP_sequence, steps_tmp):
     """
     Collect future information using the multi-step-look-ahead method to bias the movement of the next step
     
     Input: list of positions: x = [[x1,y1],[x2,y2]...[xn,yn]]
-           input sequence: input_seq = [z1,z2...zm] (m=n+steps)
+           input HP sequence: input_HP_sequence
     """
+    steps = min(steps_tmp,len(input_HP_sequence)-len(x))
+    input_seq = input_HP_sequence[:(len(x)+steps)]
+    
     # look ahead to get all possible configurations
     # do the first step
     [c1,d1] = one_step(x)
@@ -109,7 +112,7 @@ def multi_step_look_ahead(x, input_seq, steps):
 #    return [p_left, p_right, p_ahead]
 
 # test functions
-pt1 = [0,0]
+pt1 = [4,0]
 pt2 = [1,0]
 x = [pt1,pt2]
 print '---- test neighbor function ---'
