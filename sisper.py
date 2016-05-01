@@ -78,10 +78,99 @@ def compute_energy(x, input_HP_sequence):
     return U
 
 
-def multi_step_look_ahead(x, steps):
+def one_step(x):
+    """
+    return all possible configurations after one step given the current position
+    and direction for each configuration
+        
+    Input: current position x = [[x1,y1],[x2,y2]...[xn,yn]]
+    Output: [a list of configurations, a list of directions]
+    """
+    assert (len(x)>=2)
+    nbrs,dirs = neighbor(x[-1],x[-2]) # find 3 neighbors of the end point and their directions
+    x3 = x[:-3] # excluding the last 3 points
+    configs = []
+    dir_configs = []
+    for i,nb in enumerate(nbrs):
+        d = dirs[i]
+        valid_nb = True
+        for pt in x3:
+            if pt == nb:
+                valid_nb = False
+        if valid_nb:
+            configs.append(x+[nb])
+            dir_configs.append(d)
+    return [configs,dir_configs]
+
+
+def neighbor(pt,cpt):
+    """
+    return the neighbors of pt other than cpt as well as direction
+        
+    Input: pt = [x1,y1], cpt = [x2,y2]
+    Output: [a list of 3 points, a list of 3 directions]
+        
+    """
+    nbrs = []
+    dirs = []
+    if pt[0] == cpt[0]:
+        if pt[1] == cpt[1]+1:
+            nbrs = [[pt[0]+1,pt[1]],[pt[0]-1,pt[1]],[pt[0],pt[1]+1]]
+            dirs = [right,left,ahead]
+        elif pt[1] == cpt[1]-1:
+            nbrs = [[pt[0]+1,pt[1]],[pt[0]-1,pt[1]],[pt[0],pt[1]-1]]
+            dirs = [left,right,ahead]
+    if pt[1] == cpt[1]:
+        if pt[0] == cpt[0]+1:
+            nbrs = [[pt[0]+1,pt[1]],[pt[0],pt[1]+1],[pt[0],pt[1]-1]]
+            dirs = [ahead,left,right]
+        elif pt[0] == cpt[0]-1:
+            nbrs = [[pt[0]-1,pt[1]],[pt[0],pt[1]+1],[pt[0],pt[1]-1]]
+            dirs = [ahead,right,left]
+    assert (len(nbrs) == 3 and len(dirs) == 3), 'error! number of neighbors is invalid!' # sanity check
+    return [nbrs,dirs]
+
+
+def multi_step_look_ahead(x, input_HP_sequence, steps_tmp):
     """
     Collect future information using the multi-step-look-ahead method to bias the movement of the next step
+        
+    Input: list of torsion angles
+    input HP sequence: input_HP_sequence
     """
+    
+    x_coord = compute_conformation_coordinates(x_angle)
+    steps = min(steps_tmp,len(input_HP_sequence)-len(x))
+    input_seq = input_HP_sequence[:(len(x)+steps)]
+    
+    # look ahead to get all possible configurations
+    # do the first step
+    [c1,d1] = one_step(x_coord)
+    # then do the remaining steps
+    configs = c1
+    dirs = d1 # directions for each configuration
+    for s in range(steps-1):
+        new_config = [] # a list of new configurations
+        new_dirs = [] # a list of directions for new configurations
+        for i,cf in enumerate(configs):
+            [cfg,d] = one_step(cf)
+            new_config += cfg
+            new_dirs += [dirs[i]]*len(cfg)
+        configs = new_config
+        dirs = new_dirs
+
+    # compute unnormalized probability for each configuration and find marginals
+    # with respect to the direction
+    [p_left, p_right, p_ahead] = [0.0,0.0,0.0]
+    for i,cf in enumerate(configs):
+        d = dirs[i]
+        prob = exp(-compute_energy(cf,input_seq)/tau)
+        if d == left:
+            p_left += prob
+        elif d == right:
+            p_right += prob
+        elif d == ahead:
+            p_ahead += prob
     # return the unnormalized probabilities based on the immediate next step
     return [p_left, p_right, p_ahead]
 
