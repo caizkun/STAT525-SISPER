@@ -63,18 +63,82 @@ def read_input_sequence(file_name):
 
 def compute_conformation_coordinates(x):
     """
-    Compute the conformation cooridates from the vector of torsion angles
-    """
+        Compute the conformation cooridates from the vector of torsion angles
+        """
     # return a list of conformation coordinates (x_i, y_i)
     # feel free to change the function naming
+    x_i=np.zeros(x.size+2) #initialize all the points in x and y coordinates
+    y_i=np.zeros(x.size+2) #initialize all the points in x and y coordinates
+    x_i[0]=0#get the first point
+    y_i[0]=0
+    x_i[1]=0#get the second point in the positive y direction
+    y_i[1]=1
+    direction=0 #represent current direction, 0 is +y, 1 is -x, 2 is -y, 3 is +x
+    def next_position1(x_c,y_c,x,flag):#compute the next point in direction 0 and 2
+        if x==0:
+            x_c=x_c+pow(-1,flag)
+        elif x==1:
+            x_c=x_c+pow(-1,flag+1)
+        elif x==2:
+            y_c=y_c+pow(-1,flag+1)
+        return x_c,y_c
+    def next_position2(x_c,y_c,x,flag):#compute the next point in direction 1 and 3
+        if x==0:
+            y_c=y_c+pow(-1,flag)
+        elif x==1:
+            y_c=y_c+pow(-1,flag+1)
+        elif x==2:
+            x_c=x_c+pow(-1,flag)
+        return x_c,y_c
+    for ii in range(x.size):#loop through every x
+        if direction==0:
+            x_i[ii+2],y_i[ii+2]=next_position1(x_i[ii+1],y_i[ii+1],x[ii],1)
+        elif direction==1:
+            x_i[ii+2],y_i[ii+2]=next_position2(x_i[ii+1],y_i[ii+1],x[ii],1)
+        elif direction==2:
+            x_i[ii+2],y_i[ii+2]=next_position1(x_i[ii+1],y_i[ii+1],x[ii],0)
+        elif direction==3:
+            x_i[ii+2],y_i[ii+2]=next_position2(x_i[ii+1],y_i[ii+1],x[ii],0)
+        #change the direction denpends on x[ii]
+        if x[ii]==0:
+            direction=direction+1
+            direction=np.mod(direction,4)
+        elif x[ii]==1:
+            direction=direction-1
+            direction=np.mod(direction,4)
+    return x_i,y_i
 
 
-def compute_energy(x, input_HP_sequence):
+def compute_couples(input_HP_sequence):#compute all the possible couples in the series
+    num=0#initialize the size of couples
+    couples=np.zeros([len(input_HP_sequence)**2,2])
+    for ii in range(len(input_HP_sequence)):
+        if input_HP_sequence[ii]=='H':
+            for jj in range(ii+3,len(input_HP_sequence),2):#loop through the rest possible nodes
+                if input_HP_sequence[jj]=='H':
+                    couples[num,0]=ii
+                    couples[num,1]=jj
+                    num=num+1
+    couples=couples[0:num,:]#get the effective couples
+    return couples
+
+
+def compute_energy(x, couples):
     """
-    Compute the energy of a specific conformation
-    """
+        Compute the energy of a specific conformation
+        """
     # add code here, feel free to change the argument list
     # Given a input HP sequence, we already which points are H's.
+    U=0
+    x_i,y_i=compute_conformation_coordinates(x)#compute all the positions needed
+    for ii in range(int(couples.size/2)):
+        if couples[ii,0]>x.size+1 or couples[ii,1]>x.size+1:#exclude the couples exceed the current set
+            continue
+        else:
+            point1=np.array([x_i[couples[ii,0]],y_i[couples[ii,0]]])
+            point2=np.array([x_i[couples[ii,1]],y_i[couples[ii,1]]])
+            if np.dot(point1-point2,point1-point2)==1:  #neighbour point
+                U=U+1
     return U
 
 
@@ -142,6 +206,8 @@ def multi_step_look_ahead(x, input_HP_sequence, steps_tmp):
     x_coord = compute_conformation_coordinates(x_angle)
     steps = min(steps_tmp,len(input_HP_sequence)-len(x))
     input_seq = input_HP_sequence[:(len(x)+steps)]
+
+    couples = compute_couples(input_seq)
     
     # look ahead to get all possible configurations
     # do the first step
@@ -164,7 +230,7 @@ def multi_step_look_ahead(x, input_HP_sequence, steps_tmp):
     [p_left, p_right, p_ahead] = [0.0,0.0,0.0]
     for i,cf in enumerate(configs):
         d = dirs[i]
-        prob = exp(-compute_energy(cf,input_seq)/tau)
+        prob = exp(-compute_energy(cf,couples)/tau)
         if d == left:
             p_left += prob
         elif d == right:
@@ -267,6 +333,9 @@ def main():
     # sequence length
     d = len(input_HP_sequence) - 2
 
+    # connectivity couples
+    couples = compute_couples(input_HP_sequence)
+
     # fix the first step along the vertical direction
     # this step, x0, doesn't matter at all
 
@@ -300,15 +369,15 @@ def main():
             rand_num = random.random()
             if rand_num < p_left:
                 x.append(left)
-                U_new = compute_energy(x, input_HP_sequence)
+                U_new = compute_energy(x, couples)
                 w[i] *= np.exp(- (U_new - U[i]) / tau) / p_left
             elif (rand_num < (p_left + p_right)):
                 x.append(right)
-                U_new = compute_energy(x, input_HP_sequence)
+                U_new = compute_energy(x, couples)
                 w[i] *= np.exp(- (U_new - U[i]) / tau) / p_right
             else:
                 x.append(ahead)
-                U_new = compute_energy(x, input_HP_sequence)
+                U_new = compute_energy(x, couples)
                 w[i] *= np.exp(- (U_new - U[i]) / tau) / p_ahead
 
             # save the energy of the current configuration
@@ -326,7 +395,7 @@ def main():
 
             # update the conformation energies
             for i, x in enumerate(S):
-                U[i] = compute_energy(x, input_HP_sequence)
+                U[i] = compute_energy(x, couples)
 
 
 if __name__ == '__main__':
