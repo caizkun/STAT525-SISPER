@@ -4,6 +4,11 @@ Stat 525 final project
 
 @author: Chenchao
 """
+
+left  = 0           # flag indicating the torsion angle
+right = 1
+ahead = 2
+
 def compute_energy(x, input_HP_sequence):
     
     """
@@ -42,8 +47,6 @@ def neighbor(pt,cpt):
     """
     return the neighbors of pt other than cpt as well as direction
     
-    direction = 0: turn left; 1: turn right; 2: go ahead
-    
     Input: pt = [x1,y1], cpt = [x2,y2]
     Output: [a list of 3 points, a list of 3 directions]
     
@@ -53,17 +56,17 @@ def neighbor(pt,cpt):
     if pt[0] == cpt[0]:
         if pt[1] == cpt[1]+1:
             nbrs = [[pt[0]+1,pt[1]],[pt[0]-1,pt[1]],[pt[0],pt[1]+1]]
-            dirs = [1,0,2]
+            dirs = [right,left,ahead]
         elif pt[1] == cpt[1]-1:
             nbrs = [[pt[0]+1,pt[1]],[pt[0]-1,pt[1]],[pt[0],pt[1]-1]]
-            dirs = [0,1,2]
+            dirs = [left,right,ahead]
     if pt[1] == cpt[1]:
         if pt[0] == cpt[0]+1:
             nbrs = [[pt[0]+1,pt[1]],[pt[0],pt[1]+1],[pt[0],pt[1]-1]]
-            dirs = [2,0,1]
+            dirs = [ahead,left,right]
         elif pt[0] == cpt[0]-1:
             nbrs = [[pt[0]-1,pt[1]],[pt[0],pt[1]+1],[pt[0],pt[1]-1]]
-            dirs = [2,1,0]
+            dirs = [ahead,right,left]
     assert (len(nbrs) == 3 and len(dirs) == 3) # sanity check
     return [nbrs,dirs]
     
@@ -96,11 +99,11 @@ def multi_step_look_ahead(x, input_seq, steps):
 #    for i,cf in enumerate(configs):
 #        d = dirs[i]
 #        prob = exp(-compute_energy(cf,input_seq)/tau)
-#        if d == 0:
+#        if d == left:
 #            p_left += prob
-#        elif d == 1:
+#        elif d == right:
 #            p_right += prob
-#        elif d == 2:
+#        elif d == ahead:
 #            p_ahead += prob
 #    # return the unnormalized probabilities based on the immediate next step
 #    return [p_left, p_right, p_ahead]
