@@ -59,12 +59,13 @@ def read_input_sequence(file_name):
     return input_HP_sequence
 
 
-def compute_conformation_coordinates(x):
+def compute_conformation_coordinates(x_angle):
     """
     Compute the conformation cooridates from the vector of torsion angles
     """
     # return a list of conformation coordinates (x_i, y_i)
     # feel free to change the function naming
+    x = np.asarray(x_angle) #change from list to array by guanfeng on May 2nd
     x_i=np.zeros(len(x)+2) #initialize all the points in x and y coordinates
     y_i=np.zeros(len(x)+2) #initialize all the points in x and y coordinates
     x_i[0]=0#get the first point
@@ -104,7 +105,9 @@ def compute_conformation_coordinates(x):
         elif x[ii]==1:
             direction=direction-1
             direction=np.mod(direction,4)
-    return x_i,y_i
+    coordinate=np.transpose(np.vstack((x_i,y_i))) #change from array to list by guanfeng on March 2nd
+    coordinate=coordinate.tolist()
+    return coordinate
 
 
 def compute_couples(input_HP_sequence):
@@ -124,20 +127,22 @@ def compute_couples(input_HP_sequence):
     return couples
 
 
-def compute_energy(x, couples):
+def compute_energy(x_angle, couples):
     """
     Compute the energy of a specific conformation
     """
     # add code here, feel free to change the argument list
     # Given a input HP sequence, we already which points are H's.
     U=0
-    x_i,y_i=compute_conformation_coordinates(x)#compute all the positions needed
+    coordinate=compute_conformation_coordinates(x_angle)#compute all the positions needed
+    x = np.asarray(x_angle)#change from list to array by guanfeng on May 2nd
+    #change from list to array
     for ii in range(int(couples.size/2)):
         if couples[ii,0]>x.size+1 or couples[ii,1]>x.size+1:#exclude the couples exceed the current set
             continue
         else:
-            point1=np.array([x_i[couples[ii,0]],y_i[couples[ii,0]]])
-            point2=np.array([x_i[couples[ii,1]],y_i[couples[ii,1]]])
+            point1=np.array(coordinate[int(couples[ii,0])])
+            point2=np.array(coordinate[int(couples[ii,1])])
             if np.dot(point1-point2,point1-point2)==1:  #neighbour point
                 U=U+1
     return U
@@ -205,7 +210,7 @@ def multi_step_look_ahead(x, input_HP_sequence, steps_tmp):
     """
 
     x_coord = compute_conformation_coordinates(x)
-    steps = min(steps_tmp,len(input_HP_sequence)-len(x_coord))
+    steps = min(steps_tmp,len(input_HP_sequence)-len(x))
     input_seq = input_HP_sequence[:(len(x)+steps)]
 
     couples = compute_couples(input_seq)
