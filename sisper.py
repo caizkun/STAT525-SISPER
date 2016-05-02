@@ -210,8 +210,8 @@ def multi_step_look_ahead(x, input_HP_sequence, steps_tmp):
     """
 
     x_coord = compute_conformation_coordinates(x)
-    steps = min(steps_tmp,len(input_HP_sequence)-len(x))
-    input_seq = input_HP_sequence[:(len(x)+steps)]
+    steps = min(steps_tmp,len(input_HP_sequence)-len(x_coord))
+    input_seq = input_HP_sequence[:(len(x_coord)+steps)]
 
     couples = compute_couples(input_seq)
 
