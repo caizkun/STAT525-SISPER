@@ -8,6 +8,8 @@
 #   Sequential Importance Sampling with Pilot-Exploration Resampling (SISPER)
 #
 # Reference:
+#   J. L. Zhang and J. S. Liu, A new sequential improtance sampling method and its application to the two-dimensional hydrophobic-hydrophilic model,
+#   Journal of Chemical Physics, 117, 3492 (2002)
 #
 # Developers:
 # 	Zhikun Cai, Chenchao Shou, Guanfeng Gao
@@ -21,7 +23,6 @@ from scipy import stats
 import numpy as np
 import random
 import sys
-
 
 
 # initialize global parameters
@@ -66,29 +67,31 @@ def compute_conformation_coordinates(x_angle):
     # return a list of conformation coordinates (x_i, y_i)
     # feel free to change the function naming
     x = np.asarray(x_angle) #change from list to array by guanfeng on May 2nd
-    x_i=np.zeros(len(x)+2) #initialize all the points in x and y coordinates
-    y_i=np.zeros(len(x)+2) #initialize all the points in x and y coordinates
+    x_i=np.zeros(x.size+2) #initialize all the points in x and y coordinates
+    y_i=np.zeros(x.size+2) #initialize all the points in x and y coordinates
     x_i[0]=0#get the first point
     y_i[0]=0
     x_i[1]=0#get the second point in the positive y direction
     y_i[1]=1
     direction=0 #represent current direction, 0 is +y, 1 is -x, 2 is -y, 3 is +x
-    def next_position1(x_c,y_c,x,flag):#compute the next point in direction 0 and 2
-        if x==0:
+    print x_angle
+    def next_position1(x_c,y_c,x_tmp,flag):#compute the next point in direction 0 and 2
+        print "loop:", x_tmp, "--"
+        if x_tmp==0:
             x_c=x_c+pow(-1,flag)
-        elif x==1:
+        elif x_tmp==1:
             x_c=x_c+pow(-1,flag+1)
-        elif x==2:
+        elif x_tmp==2:
             y_c=y_c+pow(-1,flag+1)
-        return x_c,y_c
-    def next_position2(x_c,y_c,x,flag):#compute the next point in direction 1 and 3
-        if x==0:
+        return (x_c,y_c)
+    def next_position2(x_c,y_c,x_tmp,flag):#compute the next point in direction 1 and 3
+        if x_tmp==0:
             y_c=y_c+pow(-1,flag)
-        elif x==1:
+        elif x_tmp==1:
             y_c=y_c+pow(-1,flag+1)
-        elif x==2:
+        elif x_tmp==2:
             x_c=x_c+pow(-1,flag)
-        return x_c,y_c
+        return (x_c,y_c)
     for ii in range(x.size):#loop through every x
         if direction==0:
             x_i[ii+2],y_i[ii+2]=next_position1(x_i[ii+1],y_i[ii+1],x[ii],1)
@@ -205,10 +208,12 @@ def multi_step_look_ahead(x, input_HP_sequence, steps_tmp):
     """
     Collect future information using the multi-step-look-ahead method to bias the movement of the next step
 
-    Input: list of torsion angles
-    input HP sequence: input_HP_sequence
+    Input:  torsion angles x = [x1, x2, ..., xt],
+            input_HP_sequence: the protein HP sequence input by user
+            step_tmp: num of steps look-ahead in the algorithm
+    Output: unormalized probabilities towards three different directions, i.e. left, right, and ahead
+    
     """
-
     x_coord = compute_conformation_coordinates(x)
     steps = min(steps_tmp,len(input_HP_sequence)-len(x_coord))
     input_seq = input_HP_sequence[:(len(x_coord)+steps)]
@@ -236,6 +241,8 @@ def multi_step_look_ahead(x, input_HP_sequence, steps_tmp):
     [p_left, p_right, p_ahead] = [0.0,0.0,0.0]
     for i,cf in enumerate(configs):
         d = dirs[i]
+        # TODO: here cf should be torsion angles, not coordinates
+        # please check the input of function compute_energy
         prob = np.exp(-compute_energy(cf,couples)/tau)
         if d == left:
             p_left += prob
@@ -266,7 +273,7 @@ def resample_conformations(S, w, a, N_star):
     w_star = []
     for i in S_star_indice:
         S_star.append(S[i])
-        w_star.append(w[i])
+        w_star.append(w[i])     # TODO: this weight may be wrong
 
     # return the resampled conformations S_star and the weights w_star
     return (S_star, w_star)
@@ -328,7 +335,7 @@ def main():
     """
     Main function to implement the alogrithm SISPER
     """
-    if len(sys.argv) == 2:
+    if len(sys.argv) > 1:
         sequence_file_name = str(sys.argv[1])
     else:
         print "ERROR! Missing a sequence file!"
@@ -346,13 +353,13 @@ def main():
     # this step, x0, doesn't matter at all
 
     # initialization
-    S = N * [ahead]         # conformation set
+    S = N * [[ahead]]       # conformation set
     w = N * [1]             # conformation weights
     U = N * [0]             # conformation energy
 
     # sequentially generate conformations
     for t in xrange(1, d+1):
-
+        
         # initialize a list to save the indice of incorrectly terminated conformations
         failed_indice = []
 
