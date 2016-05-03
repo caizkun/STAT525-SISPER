@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue May  3 12:25:42 2016
+
+@author: Chenchao
+"""
+
 #
 # STAT525-SISPER, 2016
 #
@@ -15,9 +22,6 @@
 # 	Zhikun Cai, Chenchao Shou, Guanfeng Gao
 #
 
-# Usage:
-#   $ python sisper.py sequence_file_name output_file_name tau
-
 
 # import modules
 from __future__ import division
@@ -26,17 +30,19 @@ from scipy import stats
 import numpy as np
 import random
 import sys
+import matplotlib.pyplot as plt
+import matplotlib.ticker as tk
 
 
 # initialize global parameters
-N     = 100         # num of conformations
+N     = 1000        # num of conformations
 delta = 5           # num of steps lookahead in the regular SIS steps
 lamb  = 2           # frequency of resampling
 m     = 20          # num of independent paths in the resampling steps
 Delta = 20          # num of steps explored in the resampling steps
 rho   = 1           # num of steps lookahead in the resampling steps
 alpha = 0.5         # power of the Boltzmann weight in calculating the resampling probability
-#tau = 0.5          # temperature
+#tau   = 0.5         # temperature
 
 # define global constants
 res_H = 1           # flag indicating the residue type, H or P
@@ -68,6 +74,7 @@ def write_conformations(S, w, U, output_file_name):
     write the conformations to file from the lowest energy to the highest
     """
     sorted_energy_indice = np.argsort(U)
+    
 #    with open(output_file_name, 'w') as file_id:
 #        file_id.write("# num of conformations\n")
 #        file_id.write("%d\n", len(U))
@@ -81,11 +88,64 @@ def write_conformations(S, w, U, output_file_name):
     S_sorted = []
     w_sorted = []
     for index in sorted_energy_indice:
-        U_sorted.append(U[index])
+        U_sorted.append(U[indiex])
         S_sorted.append(S[index])
         w_sorted.append(w[index])
 
     np.savez(output_file_name, energies=U_sorted, coordinates=S_sorted, weights=w_sorted)
+
+
+#def compute_conformation_coordinates(x_angle):
+#    """
+#    Compute the conformation cooridates from the vector of torsion angles
+#    """
+#    # return a list of conformation coordinates (x_i, y_i)
+#    # feel free to change the function naming
+#    x = np.asarray(x_angle) #change from list to array by guanfeng on May 2nd
+#    x_i=np.zeros(x.size+2) #initialize all the points in x and y coordinates
+#    y_i=np.zeros(x.size+2) #initialize all the points in x and y coordinates
+#    x_i[0]=0#get the first point
+#    y_i[0]=0
+#    x_i[1]=0#get the second point in the positive y direction
+#    y_i[1]=1
+#    direction=0 #represent current direction, 0 is +y, 1 is -x, 2 is -y, 3 is +x
+#    print x_angle
+#    def next_position1(x_c,y_c,x_tmp,flag):#compute the next point in direction 0 and 2
+#        print "loop:", x_tmp, "--"
+#        if x_tmp==0:
+#            x_c=x_c+pow(-1,flag)
+#        elif x_tmp==1:
+#            x_c=x_c+pow(-1,flag+1)
+#        elif x_tmp==2:
+#            y_c=y_c+pow(-1,flag+1)
+#        return (x_c,y_c)
+#    def next_position2(x_c,y_c,x_tmp,flag):#compute the next point in direction 1 and 3
+#        if x_tmp==0:
+#            y_c=y_c+pow(-1,flag)
+#        elif x_tmp==1:
+#            y_c=y_c+pow(-1,flag+1)
+#        elif x_tmp==2:
+#            x_c=x_c+pow(-1,flag)
+#        return (x_c,y_c)
+#    for ii in range(x.size):#loop through every x
+#        if direction==0:
+#            x_i[ii+2],y_i[ii+2]=next_position1(x_i[ii+1],y_i[ii+1],x[ii],1)
+#        elif direction==1:
+#            x_i[ii+2],y_i[ii+2]=next_position2(x_i[ii+1],y_i[ii+1],x[ii],1)
+#        elif direction==2:
+#            x_i[ii+2],y_i[ii+2]=next_position1(x_i[ii+1],y_i[ii+1],x[ii],0)
+#        elif direction==3:
+#            x_i[ii+2],y_i[ii+2]=next_position2(x_i[ii+1],y_i[ii+1],x[ii],0)
+#        #change the direction denpends on x[ii]
+#        if x[ii]==0:
+#            direction=direction+1
+#            direction=np.mod(direction,4)
+#        elif x[ii]==1:
+#            direction=direction-1
+#            direction=np.mod(direction,4)
+#    coordinate=np.transpose(np.vstack((x_i,y_i))) #change from array to list by guanfeng on March 2nd
+#    coordinate=coordinate.tolist()
+#    return coordinate
 
 
 def compute_couples(input_HP_sequence):
@@ -347,121 +407,170 @@ def resample_with_pilot_exploration(S, w, input_HP_sequence, N_star):
     # return the resampled conformations S_star and the weights w_star
     return (S_star, w_star)
 
-
-def main():
+def plot_config(x_coord,input_HP_sequence,title,figname,plot_coord):
     """
-    Main function to implement the alogrithm SISPER
+    Input: x_coord: coordinates of all the protein residues = [[x1,y1],[x2,y2]...[xn,yn]]
+           input_HP_sequence: HP sequence of protein (e.g. 'HPPHHP')
+           title: figure title
+           figname: figure name that will be saved as
+           plot_coord: whether to plot coordinates = True/False. Plotting coordinates is usually for debugging purpose
     """
-    global tau
     
-    if len(sys.argv) == 4:
-        sequence_file_name = str(sys.argv[1])
-        output_file_name = str(sys.argv[2])
-        tau = float(sys.argv[3])         # use tau as a global variable
+    plt.figure(1)
+    plt.clf()
+    # figure parameters
+    dot_size = 30
+    line_wid = 1    
+    # first plot all individual residues    
+    for i,coord in enumerate(x_coord):
+        HP = input_HP_sequence[i]
+        if HP == 'H':
+            fill_col = 'k' # filled color of the dot is black for 'H' residue
+        elif HP == 'P':
+            fill_col = 'none' # no fill for 'P' residue      
+        plt.scatter(coord[0],coord[1],s = dot_size, facecolor = fill_col, edgecolor = 'k')
+    # then plot connected lines between adjacent residues    
+    x_coord_np = np.array(x_coord) # convert to numpy array
+    plt.plot(x_coord_np[:,0],x_coord_np[:,1],'k-',linewidth=line_wid)
+    # add labels and title
+    plt.title(title)
+    if plot_coord:
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.grid(True)
+        # only show tickers at integers
+        plt.gca().axes.get_yaxis().set_major_locator(tk.MaxNLocator(integer=True))
+        plt.gca().axes.get_xaxis().set_major_locator(tk.MaxNLocator(integer=True))
     else:
-        print "Missing inputs! Please provide: sequence_file_name, ouput_file_name, tau"
+        # make both axes invisible
+        plt.gca().axes.get_xaxis().set_visible(False)
+        plt.gca().axes.get_yaxis().set_visible(False)
+        # remove the frame
+        plt.gca().set_frame_on(False)
+    # set aspect ratios to be equal
+    plt.gca().axes.set_aspect('equal')
+    # save figure
+    plt.savefig(figname)
 
-    # read in HP sequence
-    input_HP_sequence = read_input_sequence(sequence_file_name)
-    seq_len = len(input_HP_sequence)
+"""
+Main function to implement the alogrithm SISPER
+"""
+if len(sys.argv) == 4:
+    sequence_file_name = str(sys.argv[1])
+    output_file_name = str(sys.argv[2])
+    tau = float(sys.argv[3])
+else:
+    print "ERROR! Missing a sequence file!"
 
-    # connectivity couples
-    couples = compute_couples(input_HP_sequence)
+# read in HP sequence
+input_HP_sequence = read_input_sequence(sequence_file_name)
+#input_HP_sequence = 'HPHPPHHPHPPHPHHPPHPH'
+seq_len = len(input_HP_sequence)
 
-    # set random seed
-    random.seed(23)
+# set random seed
+random.seed(23)
 
-    # initialization: fix the first step along the vertical direction
-    S = []
-    for i in xrange(N):
-        S.append([[0, 0], [0, 1]])  # conformation set
-    w = N * [1]                     # conformation weights
-    U = N * [0]                     # conformation energy
+# connectivity couples
+couples = compute_couples(input_HP_sequence)
 
-    # sequentially generate conformations
-    for t in xrange(1, seq_len-1):
-        
-        # initialize a list to save the indice of incorrectly terminated conformations
-        failed_indice = []
+# initialization: fix the first step along the vertical direction
+S = []
+for i in xrange(N):
+    S.append([[0, 0], [0, 1]])  # conformation set
+w = N * [1]                     # conformation weights
+U = N * [0]                     # conformation energy
 
-        # perform a regular SIS step with multi-step-look-ahead
-        for i in xrange(len(S)):
-            x = list(S[i])
-            # compute the probabilities along different directions
-            [p_left, p_right, p_ahead] = multi_step_look_ahead(x, input_HP_sequence, delta)
-            p_sum = p_left + p_right + p_ahead
+# sequentially generate conformations
+for t in xrange(1, seq_len-1):
+    
+    # initialize a list to save the indice of incorrectly terminated conformations
+    failed_indice = []
 
-            # record the indices of incorrectly terminated conformations
-            if p_sum == 0:
-                failed_indice.append(i)
-                continue
+    # perform a regular SIS step with multi-step-look-ahead
+    for i in xrange(len(S)):
+        x = list(S[i])
+        # compute the probabilities along different directions
+        [p_left, p_right, p_ahead] = multi_step_look_ahead(x, input_HP_sequence, delta)      
+        p_sum = p_left + p_right + p_ahead
 
-            p_left  /= p_sum
-            p_right /= p_sum
-            p_ahead /= p_sum
+        # record the indices of incorrectly terminated conformations
+        if p_sum == 0:
+            failed_indice.append(i)
+            continue
 
-            # move a new step and update the weight of the conformation
-            rand_num = random.random()
-            if rand_num < p_left:
-                next_pt = compute_next_point(x[t], x[t-1], "left")
-                
-                # sanity check
-                assert (np.linalg.norm(np.array(next_pt)-np.array(x[-1]))==1)
-                
-                x.append(next_pt)
-                U_new = compute_energy(x, couples)
-                w[i] *= np.exp(- (U_new - U[i]) / tau) / p_left
-            elif (rand_num < (p_left + p_right)):
-                next_pt = compute_next_point(x[t], x[t-1], "right")
-                
-                # sanity check
-                assert (np.linalg.norm(np.array(next_pt)-np.array(x[-1]))==1)
-                
-                x.append(next_pt)
-                U_new = compute_energy(x, couples)
-                w[i] *= np.exp(- (U_new - U[i]) / tau) / p_right
-            else:
-                next_pt = compute_next_point(x[t], x[t-1], "ahead")
-                
-                # sanity check
-                assert (np.linalg.norm(np.array(next_pt)-np.array(x[-1]))==1)
-                
-                x.append(next_pt)
-                U_new = compute_energy(x, couples)
-                w[i] *= np.exp(- (U_new - U[i]) / tau) / p_ahead
+        p_left  /= p_sum
+        p_right /= p_sum
+        p_ahead /= p_sum
 
-            # save the energy of the current configuration
-            U[i] = U_new
+        # move a new step and update the weight of the conformation
+        rand_num = random.random()
+        if rand_num < p_left:
+            next_pt = compute_next_point(x[t], x[t-1], "left")
             
-            # update S
-            S[i] = list(x)
+            # sanity check
+            assert (np.linalg.norm(np.array(next_pt)-np.array(x[-1]))==1)
+            
+            x.append(next_pt)
+            U_new = compute_energy(x, couples)
+            w[i] *= np.exp(- (U_new - U[i]) / tau) / p_left
+        elif (rand_num < (p_left + p_right)):
+            next_pt = compute_next_point(x[t], x[t-1], "right")
+            
+            # sanity check
+            assert (np.linalg.norm(np.array(next_pt)-np.array(x[-1]))==1)
+            
+            x.append(next_pt)
+            U_new = compute_energy(x, couples)
+            w[i] *= np.exp(- (U_new - U[i]) / tau) / p_right
+        else:
+            next_pt = compute_next_point(x[t], x[t-1], "ahead")
+            
+            # sanity check
+            assert (np.linalg.norm(np.array(next_pt)-np.array(x[-1]))==1)
+            
+            x.append(next_pt)
+            U_new = compute_energy(x, couples)
+            w[i] *= np.exp(- (U_new - U[i]) / tau) / p_ahead
 
-        # remove incorrectly terminated conformations
-        for i, index in enumerate(failed_indice):
-            del S[index - i]    # shift the index due to deletion; work for the sorted list
-            del w[index - i]
-            del U[index - i]
+        # save the energy of the current configuration
+        U[i] = U_new
+        # update S
+        S[i] = list(x)
+
+    # remove incorrectly terminated conformations
+    for i, index in enumerate(failed_indice):
+        del S[index - i]    # shift the index due to deletion; work for the sorted list
+        del w[index - i]
+        del U[index - i]
+    
+    # debug only
+    print 'length of S[0] = %d' % len(S[0])
+
+    # perform resampling
+    if t % (lamb + 1) == 0:
+        S, w = resample_with_pilot_exploration(S, w, input_HP_sequence, len(S))
+        # update the conformation energies
+        for i, x in enumerate(S):
+            U[i] = compute_energy(x, couples)
         
         # debug only
-        print 'length of S[0] = %d' % len(S[0])
+        print 'length of S[0] after resample = %d' % len(S[0])
 
-        # perform resampling
-        if t % (lamb + 1) == 0:
-            S, w = resample_with_pilot_exploration(S, w, input_HP_sequence, len(S))
-            # update the conformation energies
-            for i, x in enumerate(S):
-                U[i] = compute_energy(x, couples)
-            
-            # debug only
-            print 'length of S[0] after resample = %d' % len(S[0])
-
-        # print progress
-        print 'Progress %d/%d' % (t, seq_len-2)
+    # print progress
+    print 'Progress %d/%d' % (t, seq_len-2)
 
 
-    # save conformations
-    write_conformations(S, w, U, output_file_name)
+# save conformations
+write_conformations(S, w, U, output_file_name)
 
-if __name__ == '__main__':
-    # TODO: add timer
-    main()
+
+
+## find the configurations with 10 lowest energy
+#low_num = 10
+#low_energy_index = np.argsort(U) # ascending order
+#low_energy_index = low_energy_index[:low_num]
+#for i,l in enumerate(low_energy_index):
+#    x = S[l]
+#    title = 'residue plot (energy = %g)' % U[l]
+#    figname = 'residue_plot_energy_level_%d_tau%.1f.pdf' % (i+1,tau)
+#    plot_config(x,input_HP_sequence,title,figname,True)
