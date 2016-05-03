@@ -48,6 +48,8 @@ def plot_config(x_coord,input_HP_sequence,title,figname,plot_coord):
         # make both axes invisible
         plt.gca().axes.get_xaxis().set_visible(False)
         plt.gca().axes.get_yaxis().set_visible(False)
+        # remove the frame
+        plt.gca().set_frame_on(False)
     # set aspect ratios to be equal
     plt.gca().axes.set_aspect('equal')
     # save figure
