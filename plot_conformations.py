@@ -3,7 +3,7 @@
 # This script is used to plot protein conformations.
 #
 # Usage:
-#   python plot_conformations.py sequence_file_name conformation_file_name num_of_plots
+#   python plot_conformations.py sequence_file_name conformation_file_name fig_file_keywords num_of_figs
 
 
 import matplotlib.pyplot as plt
@@ -81,10 +81,11 @@ def plot_config(x_coord,input_HP_sequence,title,figname,is_grid_plotted):
 
 # --- main code ---
 def main():
-    if len(sys.argv) == 4:
+    if len(sys.argv) == 5:
         sequence_file_name = sys.argv[1]
         conformation_file_name = sys.argv[2]
-        num_of_plots = int(sys.argv[3])
+        fig_file_keywords = sys.argv[3]
+        num_of_figs = int(sys.argv[4])
     else:
         "Error in input! Please provide: sequence_file_name, conformation_file_bame, num_of plots"
 
@@ -93,11 +94,12 @@ def main():
     U, S, w = read_conformations(conformation_file_name)
 
     # plot conformations
-    assert(num_of_plots <= len(S))
+    seq_len = len(input_HP_sequence)
+    assert(num_of_figs <= len(S))
 
-    for i in xrange(num_of_plots):
-        title = "conformation: length = %d, energy = %g" % (len(S[1]), U[i])
-        fig_name = "conformation_%d.pdf" % (i+1)
+    for i in xrange(num_of_figs):
+        title = "conformation: length = %d, energy = %g" % (seq_len, U[i])
+        fig_name = fig_file_keywords + "_Umin_%d.pdf" % (i+1)
         plot_config(S[i], input_HP_sequence, title, fig_name, True)
 
 
