@@ -26,6 +26,7 @@ from scipy import stats
 import numpy as np
 import random
 import sys
+import time
 
 
 # initialize global parameters
@@ -63,9 +64,10 @@ def read_input_sequence(sequence_file_name):
     return input_HP_sequence
 
 
-def write_conformations(S, w, U, output_file_name):
+def write_conformations(S, w, U, t_exec, output_file_name):
     """
     write the conformations to file from the lowest energy to the highest
+    and the execution time
     """
     sorted_energy_indice = np.argsort(U)
 #    with open(output_file_name, 'w') as file_id:
@@ -85,7 +87,8 @@ def write_conformations(S, w, U, output_file_name):
         S_sorted.append(S[index])
         w_sorted.append(w[index])
 
-    np.savez(output_file_name, energies=U_sorted, coordinates=S_sorted, weights=w_sorted)
+    np.savez(output_file_name, energies=U_sorted, coordinates=S_sorted, \
+        t_exec=t_exec, weights=w_sorted)
 
 
 def compute_couples(input_HP_sequence):
@@ -354,6 +357,9 @@ def main():
     """
     global tau
     
+    # start timer
+    t1 = time.clock()
+    
     if len(sys.argv) == 4:
         sequence_file_name = str(sys.argv[1])
         output_file_name = str(sys.argv[2])
@@ -404,28 +410,16 @@ def main():
             rand_num = random.random()
             if rand_num < p_left:
                 next_pt = compute_next_point(x[t], x[t-1], "left")
-                
-                # sanity check
-                assert (np.linalg.norm(np.array(next_pt)-np.array(x[-1]))==1)
-                
                 x.append(next_pt)
                 U_new = compute_energy(x, couples)
                 w[i] *= np.exp(- (U_new - U[i]) / tau) / p_left
             elif (rand_num < (p_left + p_right)):
                 next_pt = compute_next_point(x[t], x[t-1], "right")
-                
-                # sanity check
-                assert (np.linalg.norm(np.array(next_pt)-np.array(x[-1]))==1)
-                
                 x.append(next_pt)
                 U_new = compute_energy(x, couples)
                 w[i] *= np.exp(- (U_new - U[i]) / tau) / p_right
             else:
                 next_pt = compute_next_point(x[t], x[t-1], "ahead")
-                
-                # sanity check
-                assert (np.linalg.norm(np.array(next_pt)-np.array(x[-1]))==1)
-                
                 x.append(next_pt)
                 U_new = compute_energy(x, couples)
                 w[i] *= np.exp(- (U_new - U[i]) / tau) / p_ahead
@@ -441,27 +435,23 @@ def main():
             del S[index - i]    # shift the index due to deletion; work for the sorted list
             del w[index - i]
             del U[index - i]
-        
-        # debug only
-        print 'length of S[0] = %d' % len(S[0])
-
+            
         # perform resampling
         if t % (lamb + 1) == 0:
             S, w = resample_with_pilot_exploration(S, w, input_HP_sequence, len(S))
             # update the conformation energies
             for i, x in enumerate(S):
                 U[i] = compute_energy(x, couples)
-            
-            # debug only
-            print 'length of S[0] after resample = %d' % len(S[0])
 
         # print progress
         print 'Progress %d/%d' % (t, seq_len-2)
 
-
-    # save conformations
-    write_conformations(S, w, U, output_file_name)
+    # record execution time
+    t2 = time.clock()
+    t_exec = t2-t1
+    
+    # save conformations and execution time
+    write_conformations(S, w, U, t_exec, output_file_name)
 
 if __name__ == '__main__':
-    # TODO: add timer
     main()
