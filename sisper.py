@@ -30,7 +30,7 @@ import time
 
 
 # initialize global parameters
-N     = 100         # num of conformations
+N     = 5000        # num of conformations
 delta = 5           # num of steps lookahead in the regular SIS steps
 lamb  = 2           # frequency of resampling
 m     = 20          # num of independent paths in the resampling steps
@@ -70,15 +70,6 @@ def write_conformations(S, w, U, t_exec, output_file_name):
     and the execution time
     """
     sorted_energy_indice = np.argsort(U)
-#    with open(output_file_name, 'w') as file_id:
-#        file_id.write("# num of conformations\n")
-#        file_id.write("%d\n", len(U))
-#        for i, energy_index in sorted_energy_indice:
-#            file_id.write("# conformation %d: energy, weight, coordinates\n" % i)
-#            file_id.write("%f\n" % U[energy_index])
-#            file_id.write("%f\n" % w[energy_index])
-#            for pt in S[energy_index]:
-#                file_id.write("%f   %f\n" % (pt[0], pt[1]))
     U_sorted = []
     S_sorted = []
     w_sorted = []
@@ -88,7 +79,17 @@ def write_conformations(S, w, U, t_exec, output_file_name):
         w_sorted.append(w[index])
 
     np.savez(output_file_name, energies=U_sorted, coordinates=S_sorted, \
-        t_exec=t_exec, weights=w_sorted)
+        weights=w_sorted, t_exec=t_exec)
+
+#    with open(output_file_name, 'w') as file_id:
+#        file_id.write("# num of conformations\n")
+#        file_id.write("%d\n", len(U))
+#        for i, energy_index in sorted_energy_indice:
+#            file_id.write("# conformation %d: energy, weight, coordinates\n" % i)
+#            file_id.write("%f\n" % U[energy_index])
+#            file_id.write("%f\n" % w[energy_index])
+#            for pt in S[energy_index]:
+#                file_id.write("%f   %f\n" % (pt[0], pt[1]))
 
 
 def compute_couples(input_HP_sequence):
@@ -116,14 +117,14 @@ def compute_energy(x, couples):
     """
     U=0
     for ii in range(couples.shape[0]):
-        
+
         if couples[ii,0]>len(x)-1 or couples[ii,1]>len(x)-1:#exclude the couples exceed the current set
             continue
-        else:           
+        else:
             point1=np.array(x[int(couples[ii,0])])
             point2=np.array(x[int(couples[ii,1])])
-            if np.dot(point1-point2,point1-point2)==1:  #neighbour point               
-                U=U+esp_HH                
+            if np.dot(point1-point2,point1-point2)==1:  #neighbour point
+                U=U+esp_HH
     return U
 
 
@@ -188,7 +189,7 @@ def multi_step_look_ahead(x, input_HP_sequence, steps_tmp):
             input_HP_sequence: the protein HP sequence input by user
             step_tmp: num of steps look-ahead in the algorithm
     Output: unormalized probabilities towards three different directions, i.e. left, right, and ahead
-    
+
     """
     steps = min(steps_tmp,len(input_HP_sequence)-len(x))
     input_seq = input_HP_sequence[:(len(x)+steps)]
@@ -233,7 +234,7 @@ def compute_next_point(pt1, pt2, move):
     """
     disp_vec = [pt1[0] - pt2[0], pt1[1] - pt2[1]]
     next_pt = [pt1[0], pt1[1]]
-    
+
     if disp_vec == [0, 1]:
         if move == "left":
             next_pt[0] -= 1
@@ -292,10 +293,11 @@ def resample_conformations(S, w, a, N_star):
     S_star_indice = resample_obj.rvs(size = N_star)
 
     S_star = []
-    w_star = []
     for i in S_star_indice:
         S_star.append(S[i])
-        w_star.append(w[i])     # TODO: this weight may be wrong
+
+    # update weights
+    w_star = N_star * [1]
 
     # return the resampled conformations S_star and the weights w_star
     return (S_star, w_star)
@@ -355,11 +357,10 @@ def main():
     """
     Main function to implement the alogrithm SISPER
     """
-    global tau
-    
     # start timer
     t1 = time.clock()
-    
+
+    global tau
     if len(sys.argv) == 4:
         sequence_file_name = str(sys.argv[1])
         output_file_name = str(sys.argv[2])
@@ -386,7 +387,7 @@ def main():
 
     # sequentially generate conformations
     for t in xrange(1, seq_len-1):
-        
+
         # initialize a list to save the indice of incorrectly terminated conformations
         failed_indice = []
 
@@ -426,7 +427,7 @@ def main():
 
             # save the energy of the current configuration
             U[i] = U_new
-            
+
             # update S
             S[i] = list(x)
 
@@ -435,7 +436,7 @@ def main():
             del S[index - i]    # shift the index due to deletion; work for the sorted list
             del w[index - i]
             del U[index - i]
-            
+
         # perform resampling
         if t % (lamb + 1) == 0:
             S, w = resample_with_pilot_exploration(S, w, input_HP_sequence, len(S))
@@ -449,7 +450,7 @@ def main():
     # record execution time
     t2 = time.clock()
     t_exec = t2-t1
-    
+
     # save conformations and execution time
     write_conformations(S, w, U, t_exec, output_file_name)
 
