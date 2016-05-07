@@ -342,7 +342,7 @@ def resample_with_pilot_exploration(S, w, input_HP_sequence, N_star):
             bj += pi_l          # pi_l value exiting the loop
 
         # compute the unnormalized resampling probability aj
-        bj /= len(S)
+        bj /= m
         aj = bj**alpha
         a.append(aj)
 
