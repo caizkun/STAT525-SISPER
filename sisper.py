@@ -81,16 +81,6 @@ def write_conformations(S, w, U, t_exec, output_file_name):
     np.savez(output_file_name, energies=U_sorted, coordinates=S_sorted, \
         weights=w_sorted, t_exec=t_exec)
 
-#    with open(output_file_name, 'w') as file_id:
-#        file_id.write("# num of conformations\n")
-#        file_id.write("%d\n", len(U))
-#        for i, energy_index in sorted_energy_indice:
-#            file_id.write("# conformation %d: energy, weight, coordinates\n" % i)
-#            file_id.write("%f\n" % U[energy_index])
-#            file_id.write("%f\n" % w[energy_index])
-#            for pt in S[energy_index]:
-#                file_id.write("%f   %f\n" % (pt[0], pt[1]))
-
 
 def compute_couples(input_HP_sequence):
     """
@@ -376,7 +366,7 @@ def main():
     couples = compute_couples(input_HP_sequence)
 
     # set random seed
-    random.seed(23)
+    # random.seed(23)
 
     # initialization: fix the first step along the vertical direction
     S = []
