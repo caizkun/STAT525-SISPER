@@ -428,7 +428,7 @@ def main():
             del U[index - i]
 
         # perform resampling
-        if t % (lamb + 1) == 0:
+        if t % lamb == 0:
             S, w = resample_with_pilot_exploration(S, w, input_HP_sequence, len(S))
             # update the conformation energies
             for i, x in enumerate(S):
