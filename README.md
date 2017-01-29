@@ -1,25 +1,25 @@
 ## STAT525-SISPER
 
-##### Developers:
+#### Developers:
 Zhikun Cai, Chenchao Shou, Guanfeng Gao
 
-##### Problem:
+#### Problem:
 Searching for the lowest-energy folded state of protein in a 2D hydrophobic-hydrophilic (HP) lattice model
 
-##### Algorithm:
+#### Algorithm:
 Sequential Importance Sampling with Pilot-Exploration Resampling (SISPER)
 
-##### Reference:
+#### Reference:
 J. L. Zhang and J. S. Liu, A new sequential improtance sampling method and its application to the two-dimensional hydrophobic-hydrophilic model, Journal of Chemical Physics, 117, 3492 (2002)
 
-##### Code Usage:
-1. Use sisper.py to run the simulation with a prepared sequence file as input:
+#### Code Usage:
+(1) Use sisper.py to run the simulation with a prepared sequence file as input:
 
     $ python sisper.py sequence_file_name conformation_file_name tau
   
-2. Use plot_conformations.py to plot the protein conformation found and save the figures:
+(2) Use plot_conformations.py to plot the protein conformation found and save the figures:
 
     $ python plot_conformations.py sequence_file_name conformation_file_name fig_file_keywords num_of_figs
     
-##### Example:
+#### Example:
 See the test folder
