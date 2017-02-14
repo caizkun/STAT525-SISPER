@@ -23,6 +23,8 @@ J. L. Zhang and J. S. Liu, A new sequential importance sampling method and its a
     
 #### Example:
 See the test folder
+    
     $ python sisper.py sequence.txt conformations_tau0.5 0.5
+    
     $ python plot_conformations.py sequence.txt conformations_tau0.5 plots_tau0.5 8
     
